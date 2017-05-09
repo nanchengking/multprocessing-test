@@ -1,7 +1,7 @@
 # coding=utf-8
 import os
 import time
-from multiprocessing import Pool, Process, Queue, Pipe, Lock, Value, Array
+from multiprocessing import Pool, Process, Queue, Pipe, Lock, Value, Array, Manager, TimeoutError
 
 
 def f(x):
@@ -142,6 +142,10 @@ def change_data(n, a):
 
 
 def share_memory():
+    '''
+    Value or Array like atomInteger atomXXX in java
+    :return: 
+    '''
     num = Value('d', 0.0)
     arr = Array('i', range(10))
 
@@ -153,6 +157,75 @@ def share_memory():
     print arr[:]
 
 
+def change_object(d, l):
+    d[1] = '1'
+    d['2'] = 2
+    d[0.25] = None
+    l.reverse()
+
+
+def share_manager():
+    '''
+    Manager like ThreadLocal in java
+    
+    Server process managers are more flexible than using shared memory objects 
+    because they can be made to support arbitrary object types. 
+    Also, a single manager can be shared by processes on different computers over a network. 
+    They are, however, slower than using shared memory.
+    :return: 
+    '''
+    manager = Manager()
+
+    d = manager.dict()
+    l = manager.list(range(10))
+
+    p = Process(target=change_object, args=(d, l))
+    p.start()
+    p.join()
+
+    print d
+    print l
+
+
+'''
+******************************* use processing pool *******************************
+'''
+
+
+def use_pool():
+    '''
+    like thread pool
+    :return: 
+    '''
+    pool = Pool(processes=4)  # start 4 worker processes
+
+    # print "[0, 1, 4,..., 81]"
+    print pool.map(f, range(10))
+
+    # print same numbers in arbitrary order
+    for i in pool.imap_unordered(f, range(10)):
+        print i
+
+    # evaluate "f(20)" asynchronously
+    res = pool.apply_async(f, (20,))  # runs in *only* one process
+    print 'pool.apply_async',res.get(timeout=1)  # prints "400"
+
+    # evaluate "os.getpid()" asynchronously
+    res = pool.apply_async(os.getpid, ())  # runs in *only* one process
+    print 'pool.apply_async pid',res.get(timeout=1)  # prints the PID of that process
+
+    # launching multiple evaluations asynchronously *may* use more processes
+    multiple_results = [pool.apply_async(os.getpid, ()) for i in range(4)]
+    print 'pool.apply_asyn multiple',[res.get(timeout=1) for res in multiple_results]
+
+    # make a single worker sleep for 10 secs
+    res = pool.apply_async(time.sleep, (10,))
+    try:
+        print 'pool.apply_asyn single sleep',res.get(timeout=1)
+    except TimeoutError:
+        print "We lacked patience and got a multiprocessing.TimeoutError"
+
+
 if __name__ == '__main__':
     # use_pool()
     # use_process()
@@ -160,4 +233,6 @@ if __name__ == '__main__':
     # exchange_by_queue()
     # exchange_by_pip()
     # test_lock()
-    share_memory()
+    # share_memory()
+    # share_manager()
+    use_pool()
