@@ -1,6 +1,7 @@
 # coding=utf-8
-from multiprocessing import Pool, Process, Queue, Pipe
-import time, os
+import os
+import time
+from multiprocessing import Pool, Process, Queue, Pipe, Lock, Value, Array
 
 
 def f(x):
@@ -11,6 +12,11 @@ def hello(name):
     print 'hello', name
     info(name)
     time.sleep(3)
+
+
+'''
+******************************* simple multi*******************************
+'''
 
 
 def use_pool():
@@ -52,6 +58,11 @@ def show_process_info():
     # p1.join()
 
 
+'''
+******************************* communicate between processes*******************************
+'''
+
+
 def put_data(q):
     q.put([42, None, 'hello'])
 
@@ -91,9 +102,62 @@ def exchange_by_pip():
     p.join()
 
 
+'''
+******************************* sync  processes in multi case*******************************
+'''
+
+
+def deal_in_lock(l, i):
+    '''
+    deal some thing with lock
+    :param l: 
+    :param i: 
+    :return: 
+    '''
+    l.acquire()
+    print 'hello world', i, time.time()
+    # comment this line,next process with block here cause not release the lock
+    l.release()
+
+
+def test_lock():
+    '''
+    
+    :return: 
+    '''
+    lock = Lock()
+    for num in range(10):
+        Process(target=deal_in_lock, args=(lock, num)).start()
+
+
+'''
+******************************* share state between processes,however share state or data *******************************
+'''
+
+
+def change_data(n, a):
+    n.value = 3.1415927
+    for i in range(len(a)):
+        a[i] = -a[i]
+
+
+def share_memory():
+    num = Value('d', 0.0)
+    arr = Array('i', range(10))
+
+    p = Process(target=change_data, args=(num, arr))
+    p.start()
+    p.join()
+
+    print num.value
+    print arr[:]
+
+
 if __name__ == '__main__':
     # use_pool()
     # use_process()
     # show_process_info()
     # exchange_by_queue()
-    exchange_by_pip()
+    # exchange_by_pip()
+    # test_lock()
+    share_memory()
